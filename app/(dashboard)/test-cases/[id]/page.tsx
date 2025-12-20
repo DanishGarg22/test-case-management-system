@@ -22,7 +22,9 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
 
   const fetchTestCase = async () => {
     try {
-      const response = await fetch(`/api/test-cases/${resolvedParams.id}`)
+      const response = await fetch(`/api/test-cases/${resolvedParams.id}`, {
+        credentials: "include"
+      })
       const data = await response.json()
       setTestCase(data.testCase)
     } catch (error) {
@@ -37,8 +39,10 @@ export default function TestCaseDetailPage({ params }: { params: Promise<{ id: s
       await fetch("/api/executions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(data),
       })
+
       fetchTestCase() // Refresh to show new execution
     } catch (error) {
       console.error("[v0] Execution failed:", error)

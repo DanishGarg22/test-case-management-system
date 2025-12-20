@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect, useCallback } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
@@ -58,24 +57,38 @@ export default function TestCasesPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch("/api/projects")
+      const response = await fetch("/api/projects", {
+        credentials: "include"
+      })
+      if (!response.ok) {
+        console.error("Failed to fetch projects:", response.status)
+        return
+      }
       const data = await response.json()
-      setProjects(data.projects)
-      if (data.projects.length > 0) {
+      setProjects(data.projects || [])
+      if (data.projects && data.projects.length > 0) {
         setSelectedProject(data.projects[0].id.toString())
       }
     } catch (error) {
-      console.error("[v0] Failed to fetch projects:", error)
+      console.error("Failed to fetch projects:", error)
+      setProjects([])
     }
   }
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch("/api/users")
+      const response = await fetch("/api/users", {
+        credentials: "include"
+      })
+      if (!response.ok) {
+        console.error("Failed to fetch users:", response.status)
+        return
+      }
       const data = await response.json()
-      setUsers(data.users)
+      setUsers(data.users || [])
     } catch (error) {
-      console.error("[v0] Failed to fetch users:", error)
+      console.error("Failed to fetch users:", error)
+      setUsers([])
     }
   }
 
@@ -84,16 +97,26 @@ export default function TestCasesPage() {
       setLoading(true)
       const params = new URLSearchParams({
         project_id: selectedProject,
-        ...(priorityFilter && { priority: priorityFilter }),
-        ...(typeFilter && { type: typeFilter }),
+        ...(priorityFilter && priorityFilter !== " " && { priority: priorityFilter }),
+        ...(typeFilter && typeFilter !== " " && { type: typeFilter }),
         ...(searchTerm && { search: searchTerm }),
       })
 
-      const response = await fetch(`/api/test-cases?${params}`)
+      const response = await fetch(`/api/test-cases?${params}`, {
+        credentials: "include"
+      })
+      
+      if (!response.ok) {
+        console.error("Failed to fetch test cases:", response.status)
+        setTestCases([])
+        return
+      }
+      
       const data = await response.json()
-      setTestCases(data.testCases)
+      setTestCases(data.testCases || [])
     } catch (error) {
-      console.error("[v0] Failed to fetch test cases:", error)
+      console.error("Failed to fetch test cases:", error)
+      setTestCases([])
     } finally {
       setLoading(false)
     }
@@ -110,6 +133,7 @@ export default function TestCasesPage() {
       const response = await fetch("/api/test-cases", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           ...formData,
           project_id: selectedProject,
@@ -133,7 +157,7 @@ export default function TestCasesPage() {
         fetchTestCases()
       }
     } catch (error) {
-      console.error("[v0] Failed to create test case:", error)
+      console.error("Failed to create test case:", error)
     }
   }
 
@@ -142,6 +166,7 @@ export default function TestCasesPage() {
       await fetch("/api/test-cases/bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           operation: "delete",
           test_case_ids: selectedIds,
@@ -151,7 +176,7 @@ export default function TestCasesPage() {
       setSelectedIds([])
       fetchTestCases()
     } catch (error) {
-      console.error("[v0] Failed to delete test cases:", error)
+      console.error("Failed to delete test cases:", error)
     }
   }
 
@@ -234,6 +259,10 @@ export default function TestCasesPage() {
 
       {loading ? (
         <div className="text-center py-12">Loading test cases...</div>
+      ) : testCases.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          No test cases found. {canEdit && "Create your first test case to get started."}
+        </div>
       ) : (
         <TestCaseTable testCases={testCases} canEdit={canEdit} selectedIds={selectedIds} onSelectIds={setSelectedIds} />
       )}

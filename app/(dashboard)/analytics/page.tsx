@@ -27,7 +27,9 @@ export default function AnalyticsPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch("/api/projects")
+      const response = await fetch("/api/projects", {
+        credentials: "include"
+      })
       const data = await response.json()
       setProjects(data.projects)
       if (data.projects.length > 0) {
@@ -41,7 +43,9 @@ export default function AnalyticsPage() {
   const fetchAnalytics = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`/api/analytics?project_id=${selectedProject}`)
+      const response = await fetch(`/api/analytics?project_id=${selectedProject}`, {
+        credentials: "include"
+      })
       const data = await response.json()
       setAnalytics(data.analytics)
     } catch (error) {

@@ -7,7 +7,7 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 interface User {
   id: number;
@@ -31,34 +31,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   /* ---------------- FETCH CURRENT USER ---------------- */
   const fetchUser = useCallback(async () => {
+    // Skip auth check on public pages
+    if (pathname === "/login" || pathname === "/register" || pathname === "/") {
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/auth/me", {
         credentials: "include",
+        cache: "no-store",
       });
 
-      // 401 = not logged in
+      console.log("Auth check response:", res.status);
+
       if (res.status === 401) {
+        console.log("Not authenticated, redirecting to login");
         setUser(null);
+        setLoading(false);
+        if (pathname !== "/login" && pathname !== "/register" && pathname !== "/") {
+          router.push("/login");
+        }
         return;
       }
 
       if (!res.ok) {
-        console.error("ME error status", res.status);
+        console.error("Auth check failed:", res.status);
         throw new Error("Failed to fetch user");
       }
 
       const data = await res.json();
+      console.log("User data received:", data.user);
       setUser(data.user);
     } catch (err) {
-      console.error("ME error", err);
+      console.error("Auth error:", err);
       setUser(null);
+      if (pathname !== "/login" && pathname !== "/register" && pathname !== "/") {
+        router.push("/login");
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [pathname, router]);
 
   useEffect(() => {
     fetchUser();
@@ -67,29 +85,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /* ---------------- LOGIN ---------------- */
   const login = useCallback(
     async (email: string, password: string) => {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-        credentials: "include",
-      });
+      try {
+        console.log("Attempting login...");
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+          credentials: "include",
+        });
 
-      const text = await res.text();
-      console.log("LOGIN status", res.status, "body:", text);
+        const data = await res.json();
+        console.log("Login response:", res.status, data);
 
-      if (!res.ok) {
-        let message = "Login failed";
-        try {
-          message = JSON.parse(text).error || message;
-        } catch {
-          // ignore JSON parse error, keep default
+        if (!res.ok) {
+          throw new Error(data.error || "Login failed");
         }
-        throw new Error(message);
-      }
 
-      const data = JSON.parse(text);
-      setUser(data.user);
-      router.push("/dashboard");
+        setUser(data.user);
+        console.log("Login successful, redirecting to dashboard");
+        router.push("/dashboard");
+        router.refresh();
+      } catch (error: any) {
+        console.error("Login error:", error);
+        throw error;
+      }
     },
     [router],
   );
@@ -97,29 +116,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /* ---------------- REGISTER ---------------- */
   const register = useCallback(
     async (email: string, password: string, fullName: string) => {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, fullName }),
-        credentials: "include",
-      });
+      try {
+        console.log("Attempting registration...");
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, fullName }),
+          credentials: "include",
+        });
 
-      const text = await res.text();
-      console.log("REGISTER status", res.status, "body:", text);
+        const data = await res.json();
+        console.log("Register response:", res.status, data);
 
-      if (!res.ok) {
-        let message = "Registration failed";
-        try {
-          message = JSON.parse(text).error || message;
-        } catch {
-          // ignore JSON parse error, keep default
+        if (!res.ok) {
+          throw new Error(data.error || "Registration failed");
         }
-        throw new Error(message);
-      }
 
-      const data = JSON.parse(text);
-      setUser(data.user);
-      router.push("/dashboard");
+        setUser(data.user);
+        console.log("Registration successful, redirecting to dashboard");
+        router.push("/dashboard");
+        router.refresh();
+      } catch (error: any) {
+        console.error("Registration error:", error);
+        throw error;
+      }
     },
     [router],
   );
@@ -127,19 +147,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /* ---------------- LOGOUT ---------------- */
   const logout = useCallback(async () => {
     try {
-      const res = await fetch("/api/auth/logout", {
+      await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "include",
       });
-
-      if (!res.ok) {
-        console.error("Logout failed", res.status);
-      }
     } catch (err) {
-      console.error("Logout error", err);
+      console.error("Logout error:", err);
     } finally {
       setUser(null);
       router.push("/login");
+      router.refresh();
     }
   }, [router]);
 
@@ -151,6 +168,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     [user],
   );
+
+  // Don't render children until auth check is complete (except on public pages)
+  if (loading && pathname !== "/login" && pathname !== "/register" && pathname !== "/") {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AuthContext.Provider

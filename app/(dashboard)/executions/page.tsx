@@ -25,7 +25,9 @@ export default function ExecutionsPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch("/api/projects")
+      const response = await fetch("/api/projects", {
+        credentials: "include"
+      })
       const data = await response.json()
       setProjects(data.projects)
       if (data.projects.length > 0) {
@@ -44,7 +46,9 @@ export default function ExecutionsPage() {
         ...(statusFilter && { status: statusFilter }),
       })
 
-      const response = await fetch(`/api/executions?${params}`)
+      const response = await fetch(`/api/executions?${params}`, {
+        credentials: "include"
+      })
       const data = await response.json()
       setExecutions(data.executions)
     } catch (error) {

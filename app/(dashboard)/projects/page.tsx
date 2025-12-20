@@ -1,12 +1,11 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { ProjectCard } from "@/components/projects/project-card"
-import { Plus } from "lucide-react"
+import { Plus, AlertCircle } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -25,6 +24,7 @@ export default function ProjectsPage() {
   const { hasRole } = useAuth()
   const [projects, setProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string>("")
   const [open, setOpen] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
@@ -39,11 +39,29 @@ export default function ProjectsPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch("/api/projects")
+      setLoading(true)
+      setError("")
+      console.log("Fetching projects...")
+      
+      const response = await fetch("/api/projects", {
+        credentials: "include",
+        cache: "no-store",
+      })
+      
+      console.log("Projects response status:", response.status)
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch projects: ${response.status}`)
+      }
+      
       const data = await response.json()
-      setProjects(data.projects)
-    } catch (error) {
-      console.error("[v0] Failed to fetch projects:", error)
+      console.log("Projects data:", data)
+      
+      setProjects(data.projects || [])
+    } catch (error: any) {
+      console.error("Failed to fetch projects:", error)
+      setError(error.message || "Failed to load projects")
+      setProjects([])
     } finally {
       setLoading(false)
     }
@@ -52,23 +70,46 @@ export default function ProjectsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      console.log("Creating project:", formData)
+      
       const response = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(formData),
       })
+
+      console.log("Create project response:", response.status)
 
       if (response.ok) {
         setOpen(false)
         setFormData({ name: "", description: "", version: "", status: "active" })
         fetchProjects()
+      } else {
+        const errorData = await response.json()
+        console.error("Create project error:", errorData)
+        alert(errorData.error || "Failed to create project")
       }
-    } catch (error) {
-      console.error("[v0] Failed to create project:", error)
+    } catch (error: any) {
+      console.error("Failed to create project:", error)
+      alert(error.message || "Failed to create project")
     }
   }
 
   const canCreateProject = hasRole(["admin", "test-lead"])
+
+  if (error && projects.length === 0) {
+    return (
+      <div className="p-8">
+        <div className="text-center py-12">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">Unable to Load Projects</h2>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={fetchProjects}>Try Again</Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="p-8">
@@ -148,10 +189,13 @@ export default function ProjectsPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12">Loading projects...</div>
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading projects...</p>
+        </div>
       ) : projects.length === 0 ? (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">No projects found. Create your first project to get started.</p>
+          <p className="text-muted-foreground">No projects found. {canCreateProject && "Create your first project to get started."}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
