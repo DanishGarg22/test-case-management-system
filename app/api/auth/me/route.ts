@@ -1,4 +1,7 @@
 // app/api/auth/me/route.ts
+
+export const runtime = "nodejs"; // 🔥 REQUIRED
+
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 

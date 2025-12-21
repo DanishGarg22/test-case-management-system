@@ -1,15 +1,16 @@
 // app/api/auth/register/route.ts
-import { type NextRequest, NextResponse } from "next/server";
+
+export const runtime = "nodejs"; // 🔥 REQUIRED
+
+import { NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 import { hashPassword, createToken, setAuthCookie } from "@/lib/auth";
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
-    // ---------- PARSE BODY ----------
     const body = await request.json();
     const { email, password, fullName, role = "tester" } = body;
 
-    // ---------- VALIDATION ----------
     if (!email || !password || !fullName) {
       return NextResponse.json(
         { error: "Email, password, and full name are required" },
@@ -32,17 +33,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ---------- SANITIZE ----------
     const sanitizedEmail = email.trim().toLowerCase();
     const sanitizedFullName = fullName.trim().replace(/[<>]/g, "");
 
     const validRoles = ["admin", "test-lead", "tester", "read-only"];
     const sanitizedRole = validRoles.includes(role) ? role : "tester";
 
-    // ---------- CHECK EXISTING USER ----------
     const existingUser = await sql`
       SELECT id FROM users WHERE email = ${sanitizedEmail}
     `;
+
     if (existingUser.length > 0) {
       return NextResponse.json(
         { error: "User with this email already exists" },
@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ---------- CREATE USER ----------
     const passwordHash = await hashPassword(password);
 
     const result = await sql`
@@ -61,7 +60,6 @@ export async function POST(request: NextRequest) {
 
     const user = result[0];
 
-    // ---------- JWT + COOKIE ----------
     const token = await createToken({
       id: user.id,
       email: user.email,
@@ -71,16 +69,10 @@ export async function POST(request: NextRequest) {
 
     await setAuthCookie(token);
 
-    // ---------- RESPONSE ----------
     return NextResponse.json(
       {
         message: "User registered successfully",
-        user: {
-          id: user.id,
-          email: user.email,
-          full_name: user.full_name,
-          role: user.role,
-        },
+        user,
       },
       { status: 201 }
     );

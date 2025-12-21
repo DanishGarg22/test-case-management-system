@@ -1,4 +1,7 @@
 // app/api/auth/logout/route.ts
+
+export const runtime = "nodejs"; // 🔥 REQUIRED
+
 import { NextResponse } from "next/server";
 import { clearAuthCookie } from "@/lib/auth";
 
