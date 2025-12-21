@@ -486,16 +486,3 @@ Ensure all environment variables are set in Vercel:
 - Scheduled test runs
 - Real-time collaboration features
 - Mobile app support
-
-## License
-
-MIT License
-
-## Support
-
-For issues and questions:
-- Open an issue on GitHub
-- Contact the development team
-- Check the documentation
-#   t e s t - c a s e - m a n a g e m e n t - s y s t e m  
- 

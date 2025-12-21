@@ -10,28 +10,31 @@ export interface AuthenticatedRequest extends NextRequest {
   }
 }
 
-// Middleware to check authentication
-export async function requireAuth(handler: (req: AuthenticatedRequest) => Promise<NextResponse>) {
+export function requireAuth(handler: (req: AuthenticatedRequest) => Promise<NextResponse>) {
   return async (request: NextRequest) => {
-    const user = await getCurrentUser()
+    try {
+      const user = await getCurrentUser()
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      }
+
+      const authRequest = request as AuthenticatedRequest
+      authRequest.user = user
+
+      return handler(authRequest)
+    } catch (error) {
+      console.error("Auth middleware error:", error)
+      return NextResponse.json({ error: "Authentication failed" }, { status: 401 })
     }
-
-    const authRequest = request as AuthenticatedRequest
-    authRequest.user = user
-
-    return handler(authRequest)
   }
 }
 
-// Middleware to check specific roles
 export function requireRole(allowedRoles: string[]) {
   return (handler: (req: AuthenticatedRequest) => Promise<NextResponse>) => {
     return requireAuth(async (request: AuthenticatedRequest) => {
       if (!request.user || !hasRole(request.user, allowedRoles)) {
-        return NextResponse.json({ error: "Forbidden - Insufficient permissions" }, { status: 403 })
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
       }
 
       return handler(request)
